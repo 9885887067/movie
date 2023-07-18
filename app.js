@@ -9,13 +9,13 @@ const {open}=require("sqlite")
 
 const sqlite3=require("sqlite3")
 
-const dbPath=path.join(__dirname,moviesData.db)
-let db=null
+const dbPath=path.join(__dirname,"moviesData.db")
+let db=null;
 const initializedbAndSever=async()=>{
     try{
     db=await open(
         {
-            fileName:dbPath,
+            filename:dbPath,
             driver:sqlite3.Database,
         }
     )
@@ -39,14 +39,14 @@ return {
 
 
 app.get("/movies/",async(request,response)=>{
-    const getMoviesQuery='
+    const getMoviesQuery=`
         SELECT 
         movie_name 
         FROM 
         movie
         ORDER BY movie_id;
-    ';
-    const movieArray=await db.all(getMoviesQuery)
+    `;
+    const movieArray=await db.all(getMoviesQuery);
     response.send(movieArray.map((movie)=>
     convertToDbObjectToResponse(movie)
     )
@@ -55,7 +55,7 @@ app.get("/movies/",async(request,response)=>{
 
 
 
-app.post("/movies/",(request,response)=>{
+app.post("/movies/",async(request,response)=>{
     const movieDetails=request.body
     const {
         directorId,
@@ -71,12 +71,22 @@ app.post("/movies/",(request,response)=>{
         '${leadActor}'
     );
     `;
-    const dbResponse=await db.run(addMovieQuery)
-    const movieId=dbResponse.lastID
+    const dbResponse=await db.run(addMovieQuery);
+    const movieId=dbResponse.lastID;
     response.send("Movie Successfully Added")
 })
 
 
+updateRequest=(dbObj)=>{
+    return{
+         movieId:dbObj.movie_id,
+         directorId:dbObj.director_id,
+         movieName:dbObj.movie_name,
+         leadActor:dbObj.lead_actor
+        
+    }
+
+}
 app.get("/movies/:movieId/",async(request,response)=>{
     const {movieId}=request.params;
     const getMovieQuery=`
@@ -84,8 +94,12 @@ app.get("/movies/:movieId/",async(request,response)=>{
             movie
             WHERE movie_id=${movieId};
     `;
-   const dbResp= await db.get(getMovieQuery)
-   response.send(dbResp)
+   const dbResp= await db.get(getMovieQuery);
+
+   response.send(dbResp.map((array)=>
+   updateRequest(array)
+   )
+   );
 
 })
 
@@ -102,10 +116,10 @@ app.put("/movies/:movieId/",async(request,response)=>{
         UPDATE 
         movie 
         SET 
-        {movie_id}='${movieId}',
-        {director_id}='${directorId}',
+        {movie_id}=${movieId},
+        {director_id}=${directorId},
         {movie_name}='${movieName}',
-        {lead_actor}='${lead_actor}'
+        {lead_actor}='${leadActor}'
         WHERE 
         movie_id=${movieId};
     `;
@@ -125,7 +139,7 @@ app.delete("/movies/:movieId/",async(request,response)=>{
     await db.run(deleteQuery)
     response.send("Movie Removed")
 })
-const dbObjToResponse=(dbObject){
+const dbObjToResponse=(dbObject)=>{
     return{
         directorId:dbObject.director_id,
         directorName:dbObject.director_name
@@ -155,11 +169,13 @@ app.get("/directors/:directorId/movies/",async(request,response)=>{
     const {directorId}=request.params
     const getMovieQuery=`
         SELECT movie_name FROM 
-        movie
-        INNER JOIN director ON director_id=${directorId};  
+        director
+        INNER JOIN movie ON director_id=${directorId};  
     `;
     const movieName=await db.get(getMovieQuery)
-    response.send(movieName.map((eachNmae)=>
-    convertDbObjToResponse(eachName)))
+    response.send(movieName.map((eachName)=>
+    convertDbObjToResponse(eachName)
+    )
+    );
 })
 module.exports=app
